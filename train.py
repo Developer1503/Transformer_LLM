@@ -1,3 +1,4 @@
+import deepspeed
 import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
@@ -51,6 +52,20 @@ def main():
     data = load_data('path_to_your_data.json')
     dataset = preprocess_data(data, tokenizer, max_len)
     data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+    # DeepSpeed configuration
+    ds_config = {
+        "train_batch_size": batch_size,
+        "gradient_accumulation_steps": 1,
+        "fp16": {
+            "enabled": True
+        },
+        "zero_optimization": {
+            "stage": 1
+        }
+    }
+
+    model, optimizer, _, _ = deepspeed.initialize(model=model, optimizer=optimizer, config=ds_config)
 
     # Training loop
     for epoch in range(epochs):
