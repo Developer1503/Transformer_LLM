@@ -1,9 +1,10 @@
 import torch.nn as nn
-from model.attention import FlashAttention
+from model.attention import LongformerAttention, PerformerAttention
 from utils.positional_encoding import RelativePositionalEncoding
+from model.encoder import FeedForward, RMSNorm
 
 class Transformer(nn.Module):
-    def __init__(self, src_vocab_size, tgt_vocab_size, d_model=512, nhead=8, num_encoder_layers=6, num_decoder_layers=6, dim_feedforward=2048, dropout=0.1, window_size=512):
+    def __init__(self, src_vocab_size, tgt_vocab_size, d_model=512, nhead=8, num_encoder_layers=6, num_decoder_layers=6, dim_feedforward=2048, dropout=0.1, window_size=512, attention_type='longformer'):
         super(Transformer, self).__init__()
         self.embedding_size = d_model
 
@@ -11,13 +12,19 @@ class Transformer(nn.Module):
         self.tgt_embed = nn.Embedding(tgt_vocab_size, d_model)
         self.pos_encoder = RelativePositionalEncoding(d_model, dropout)
 
-        self_attn = FlashAttention(d_model, nhead)
+        if attention_type == 'longformer':
+            self_attn = LongformerAttention(d_model, nhead, window_size)
+        elif attention_type == 'performer':
+            self_attn = PerformerAttention(d_model, nhead, kernel_fn=nn.ReLU())
+        else:
+            raise ValueError("Unsupported attention type")
+
         encoder_layer = nn.TransformerEncoderLayer(d_model, nhead, dim_feedforward, dropout)
-        encoder_norm = nn.LayerNorm(d_model)
+        encoder_norm = RMSNorm(d_model)
         self.encoder = nn.TransformerEncoder(encoder_layer, num_encoder_layers, encoder_norm)
 
         decoder_layer = nn.TransformerDecoderLayer(d_model, nhead, dim_feedforward, dropout)
-        decoder_norm = nn.LayerNorm(d_model)
+        decoder_norm = RMSNorm(d_model)
         self.decoder = nn.TransformerDecoder(decoder_layer, num_decoder_layers, decoder_norm)
 
         self.generator = nn.Linear(d_model, tgt_vocab_size)
