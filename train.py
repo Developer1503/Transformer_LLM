@@ -1,22 +1,28 @@
 import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
+from torch.cuda.amp import autocast, GradScaler
 from model.transformer import Transformer
 from data.dataset import ChatDataset, load_data, preprocess_data
 from data.tokenizer import SimpleTokenizer
-import os
 
-def train(model, data_loader, optimizer, criterion, device, epoch):
+def train(model, data_loader, optimizer, criterion, device, epoch, scaler):
     model.train()
     epoch_loss = 0
     for src, tgt in data_loader:
         src, tgt = src.to(device), tgt.to(device)
         optimizer.zero_grad()
-        output = model(src, tgt[:, :-1])
-        loss = criterion(output.view(-1, output.shape[-1]), tgt[:, 1:].reshape(-1))
-        loss.backward()
-        optimizer.step()
+
+        with autocast():
+            output = model(src, tgt[:, :-1])
+            loss = criterion(output.view(-1, output.shape[-1]), tgt[:, 1:].reshape(-1))
+
+        scaler.scale(loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
+
         epoch_loss += loss.item()
+
     avg_loss = epoch_loss / len(data_loader)
     print(f'Epoch {epoch+1}, Loss: {avg_loss:.4f}')
     return avg_loss
@@ -38,6 +44,7 @@ def main():
     model = Transformer(src_vocab_size, tgt_vocab_size, d_model, num_heads, num_layers).to(device)
     optimizer = optim.Adam(model.parameters(), lr=lr)
     criterion = nn.CrossEntropyLoss()
+    scaler = GradScaler()
 
     # Load data
     tokenizer = SimpleTokenizer()
@@ -47,7 +54,7 @@ def main():
 
     # Training loop
     for epoch in range(epochs):
-        loss = train(model, data_loader, optimizer, criterion, device, epoch)
+        loss = train(model, data_loader, optimizer, criterion, device, epoch, scaler)
 
         # Save checkpoint
         checkpoint_path = f'checkpoint_epoch_{epoch+1}.pth'
