@@ -1,40 +1,38 @@
+import torch
 import torch.nn as nn
-from model.attention import LongformerAttention, PerformerAttention
-from utils.positional_encoding import RelativePositionalEncoding
-from model.encoder import FeedForward, RMSNorm
+from transformers import CLIPModel, CLIPProcessor
 
-class Transformer(nn.Module):
-    def __init__(self, src_vocab_size, tgt_vocab_size, d_model=512, nhead=8, num_encoder_layers=6, num_decoder_layers=6, dim_feedforward=2048, dropout=0.1, window_size=512, attention_type='longformer'):
-        super(Transformer, self).__init__()
-        self.embedding_size = d_model
+class MultiModalTransformer(nn.Module):
+    def __init__(self, text_model, vision_model_name="openai/clip-vit-base-patch32"):
+        super(MultiModalTransformer, self).__init__()
+        self.text_model = text_model
+        self.vision_model = CLIPModel.from_pretrained(vision_model_name)
+        self.processor = CLIPProcessor.from_pretrained(vision_model_name)
 
-        self.src_embed = nn.Embedding(src_vocab_size, d_model)
-        self.tgt_embed = nn.Embedding(tgt_vocab_size, d_model)
-        self.pos_encoder = RelativePositionalEncoding(d_model, dropout)
+        # Fusion layer to merge text and vision features
+        self.fusion_layer = nn.Linear(
+            text_model.d_model + self.vision_model.config.hidden_size,
+            text_model.d_model
+        )
 
-        if attention_type == 'longformer':
-            self_attn = LongformerAttention(d_model, nhead, window_size)
-        elif attention_type == 'performer':
-            self_attn = PerformerAttention(d_model, nhead, kernel_fn=nn.ReLU())
-        else:
-            raise ValueError("Unsupported attention type")
+    def forward(self, src, tgt, image=None, src_mask=None, tgt_mask=None):
+        # Process text input
+        src_emb = self.text_model.embedding(src)
+        tgt_emb = self.text_model.embedding(tgt)
 
-        encoder_layer = nn.TransformerEncoderLayer(d_model, nhead, dim_feedforward, dropout)
-        encoder_norm = RMSNorm(d_model)
-        self.encoder = nn.TransformerEncoder(encoder_layer, num_encoder_layers, encoder_norm)
+        # Process image input
+        if image is not None:
+            inputs = self.processor(images=image, return_tensors="pt", padding=True)
+            image_features = self.vision_model.get_image_features(**inputs)
+            image_features = image_features.unsqueeze(1).expand(-1, src_emb.size(1), -1)
+            src_emb = torch.cat((src_emb, image_features), dim=-1)
+            src_emb = self.fusion_layer(src_emb)
 
-        decoder_layer = nn.TransformerDecoderLayer(d_model, nhead, dim_feedforward, dropout)
-        decoder_norm = RMSNorm(d_model)
-        self.decoder = nn.TransformerDecoder(decoder_layer, num_decoder_layers, decoder_norm)
-
-        self.generator = nn.Linear(d_model, tgt_vocab_size)
-
-    def forward(self, src, tgt, src_mask=None, tgt_mask=None, memory_mask=None, src_key_padding_mask=None, tgt_key_padding_mask=None, memory_key_padding_mask=None):
-        src_emb = self.pos_encoder(self.src_embed(src))
-        tgt_emb = self.pos_encoder(self.tgt_embed(tgt))
-
-        # Use checkpointing for encoder and decoder
-        memory = self.encoder(src_emb, mask=src_mask, src_key_padding_mask=src_key_padding_mask)
-        output = self.decoder(tgt_emb, memory, tgt_mask=tgt_mask, memory_mask=memory_mask, tgt_key_padding_mask=tgt_key_padding_mask, memory_key_padding_mask=memory_key_padding_mask)
-
-        return self.generator(output)
+        # Pass through Transformer
+        memory = src_emb
+        for layer in self.text_model.encoder:
+            memory = layer(memory, src_mask)
+        output = tgt_emb
+        for layer in self.text_model.decoder:
+            output = layer(output, memory, tgt_mask)
+        return self.text_model.generator(output)
