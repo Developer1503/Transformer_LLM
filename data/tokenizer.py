@@ -1,6 +1,6 @@
 class MultiModalTokenizer:
     def __init__(self, vocab=None):
-        self.vocab = vocab or {"<pad>": 0, "<unk>": 1, "<sos>": 2, "<eos>": 3, "<img>": 4}
+        self.vocab = vocab or {"<pad>": 0, "<unk>": 1, "<sos>": 2, "<eos>": 3}
         self.inv_vocab = {v: k for k, v in self.vocab.items()}
 
     def text_to_sequence(self, text):

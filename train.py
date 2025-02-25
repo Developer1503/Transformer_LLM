@@ -1,21 +1,19 @@
 import torch
 from torch.utils.data import DataLoader
 from torch.cuda.amp import autocast
-from data.dataset import MultiModalDataset
+from data.dataset import TextDataset
 from data.tokenizer import MultiModalTokenizer
-from transformers import CLIPProcessor
 from model.transformer import MultiModalTransformer
 
 def train(model, data_loader, optimizer, criterion, device, epoch, scaler):
     model.train()
     epoch_loss = 0
-    for src, tgt, image in data_loader:
+    for src, tgt in data_loader:
         src, tgt = src.to(device), tgt.to(device)
-        image = image.to(device) if image is not None else None
 
         optimizer.zero_grad()
         with autocast():
-            output = model(src, tgt[:, :-1], image)
+            output = model(src, tgt[:, :-1])
             loss = criterion(output.view(-1, output.shape[-1]), tgt[:, 1:].reshape(-1))
 
         scaler.scale(loss).backward()
@@ -39,12 +37,11 @@ def main():
     max_len = 50
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Initialize tokenizer and processor
+    # Initialize tokenizer
     tokenizer = MultiModalTokenizer()
-    processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
 
     # Load dataset
-    dataset = MultiModalDataset("scraped_data.json", tokenizer, processor, max_len)
+    dataset = TextDataset("scraped_text_data.json", tokenizer, max_len)
     data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
     # Initialize model, optimizer, and loss function
