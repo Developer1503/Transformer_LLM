@@ -1,6 +1,6 @@
 import torch
 from torch.utils.data import DataLoader
-from torch.cuda.amp import autocast
+from torch.cuda.amp import autocast, GradScaler
 from data.dataset import TextDataset
 from data.tokenizer import MultiModalTokenizer
 from model.transformer import MultiModalTransformer
@@ -37,8 +37,8 @@ def main():
     max_len = 50
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Initialize tokenizer
-    tokenizer = MultiModalTokenizer()
+    # Initialize tokenizer with pre-trained embeddings
+    tokenizer = MultiModalTokenizer(embedding_matrix=np.random.rand(src_vocab_size, d_model))
 
     # Load dataset
     dataset = TextDataset("scraped_text_data.json", tokenizer, max_len)
@@ -46,10 +46,10 @@ def main():
 
     # Initialize model, optimizer, and loss function
     text_model = DummyTextModel(d_model, src_vocab_size)  # Replace with your actual text model
-    model = MultiModalTransformer(text_model).to(device)
+    model = MultiModalTransformer(text_model, tokenizer.embedding_matrix).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     criterion = torch.nn.CrossEntropyLoss()
-    scaler = torch.cuda.amp.GradScaler()
+    scaler = GradScaler()
 
     # Training loop
     for epoch in range(epochs):
