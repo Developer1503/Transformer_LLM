@@ -1,0 +1,4 @@
+Website: example.com
+Content: This is a sample scraped webpage containing dummy text. Web scraping allows automated data extraction from websites.
+Website: testsite.org
+Content: Another example of extracted web data for NLP processing.

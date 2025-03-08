@@ -1,0 +1,23 @@
+[
+    {
+        "id": "1",
+        "subreddit": "MachineLearning",
+        "user": "user123",
+        "comment": "What are the best resources for ML?",
+        "upvotes": 12
+    },
+    {
+        "id": "2",
+        "subreddit": "AI",
+        "user": "ai_fan",
+        "comment": "How does GPT-4 work?",
+        "upvotes": 34
+    },
+    {
+        "id": "3",
+        "subreddit": "DataScience",
+        "user": "data_wizard",
+        "comment": "What are good Python libraries for DS?",
+        "upvotes": 21
+    }
+]

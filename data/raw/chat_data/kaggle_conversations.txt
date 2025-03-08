@@ -1,0 +1,5 @@
+User: What is data augmentation?
+Assistant: Data augmentation is a technique to artificially increase the size of a dataset by applying transformations like rotation, flipping, or noise addition.
+
+User: How can I improve my model's accuracy?
+Assistant: You can try hyperparameter tuning, increasing dataset size, and using more advanced architectures.
