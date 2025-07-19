@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "app.py": {
+      "memory": 1024
+    }
+  },
   "builds": [
     {
       "src": "app.py",
