@@ -1,7 +1,0 @@
-# Vercel needs a CPU-specific, smaller version of PyTorch to avoid exceeding memory limits.
-# The --find-links flag directs pip to look for wheels in the specified URL.
---find-links https://download.pytorch.org/whl/cpu/torch_stable.html
-torch
-streamlit
-requests
-beautifulsoup4
