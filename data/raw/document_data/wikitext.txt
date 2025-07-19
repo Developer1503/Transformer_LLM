@@ -1,4 +1,0 @@
-Wikipedia Article: Machine Learning
-Machine learning is a field of artificial intelligence that uses statistical techniques to enable computers to learn from data.
-Wikipedia Article: Neural Networks
-Neural networks are computational models inspired by the human brain, used in deep learning.
